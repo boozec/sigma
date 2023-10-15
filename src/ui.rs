@@ -1,3 +1,4 @@
+use crate::registers::RegistersData;
 use crossterm::{
     event::{self, Event, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -55,19 +56,21 @@ fn handle_events(ui: &mut UI) -> io::Result<bool> {
     Ok(false)
 }
 
-pub fn run_tui(pid: Pid, lines: &str) -> anyhow::Result<()> {
+pub fn run_tui(pid: Pid, registers: &Vec<RegistersData>) -> anyhow::Result<()> {
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
     let mut ui = UI::new();
-    ui.max_lines = lines.split('\n').count() + 1;
+    ui.max_lines = registers.len() + 1;
 
     let mut should_quit = false;
     while !should_quit {
         ui.height = terminal.get_frame().size().height as usize;
         terminal.draw(move |frame| {
             let size = frame.size();
+            let lines: Vec<Line> = registers.iter().map(|x| x.output_ui()).collect();
+
             frame.render_widget(
                 Paragraph::new(lines)
                     .block(

@@ -37,13 +37,14 @@ fn main() -> anyhow::Result<()> {
         Ok(Fork::Parent(child)) => Pid::from_raw(child),
         Err(err) => panic!("fork() failed: {err}"),
     };
-    let output = trace(pid, args.file_to_print)?;
-    let lines = str::from_utf8(&output)?.trim();
+    let registers = trace(pid, args.file_to_print)?;
 
     if !args.no_tui {
-        run_tui(pid, lines)?;
+        run_tui(pid, &registers)?;
     } else {
-        writeln!(io::stdout(), "{lines}")?;
+        for line in registers {
+            writeln!(io::stdout(), "{}", line.output())?;
+        }
     }
 
     Ok(())

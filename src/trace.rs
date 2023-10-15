@@ -25,8 +25,8 @@ pub fn exec(command: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Trace a process with `pid` ID
-pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<u8>> {
+/// Trace a process with `pid` ID and returns a list of `RegistersData`
+pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<RegistersData>> {
     // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
     // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
@@ -41,7 +41,7 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<u8>>
         f = Some(File::create(filename)?);
     }
 
-    let mut lines = Vec::new();
+    let mut lines: Vec<RegistersData> = Vec::new();
 
     loop {
         have_to_print ^= true;
@@ -59,11 +59,12 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<u8>>
                     Signal::SIGTRAP => {
                         if have_to_print {
                             let reg = RegistersData::new(ptrace::getregs(pid)?);
-                            writeln!(lines, "{}", reg.output())?;
 
                             if let Some(ref mut f) = f {
                                 writeln!(f, "{}", reg.output())?;
                             }
+
+                            lines.push(reg);
                         }
                     }
                     _ => {}
