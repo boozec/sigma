@@ -9,7 +9,7 @@ use nix::{
 use std::{fs::File, io::Write, os::unix::process::CommandExt, process::Command};
 
 /// Exec the `command` value tracing it with `ptrace` lib
-pub fn exec(command: &String) -> anyhow::Result<()> {
+pub fn exec(command: &str) -> anyhow::Result<()> {
     let params: Vec<&str> = command.split(' ').collect();
 
     let mut command = Command::new(params[0]);

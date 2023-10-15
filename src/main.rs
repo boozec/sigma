@@ -33,14 +33,14 @@ fn main() -> anyhow::Result<()> {
 
     let pid = match fork() {
         Ok(Fork::Child) => return exec(&args.command),
-        Ok(Fork::Parent(child)) => Pid::from_raw(child as i32),
+        Ok(Fork::Parent(child)) => Pid::from_raw(child),
         Err(err) => panic!("fork() failed: {err}"),
     };
     let output = trace(pid, args.file_to_print)?;
     let lines = str::from_utf8(&output)?.trim();
 
     if !args.no_tui {
-        let _ = run_tui(pid, lines)?;
+        run_tui(pid, lines)?;
     } else {
         writeln!(io::stdout(), "{lines}")?;
     }
