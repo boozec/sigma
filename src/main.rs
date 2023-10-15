@@ -1,3 +1,4 @@
+mod registers;
 mod trace;
 mod ui;
 use std::{

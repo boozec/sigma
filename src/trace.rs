@@ -1,3 +1,4 @@
+use crate::registers::RegistersData;
 use nix::{
     sys::{
         ptrace,
@@ -56,16 +57,12 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<u8>>
             WaitStatus::Stopped(pid, signal) => {
                 match signal {
                     Signal::SIGTRAP => {
-                        let regs = ptrace::getregs(pid)?;
                         if have_to_print {
-                            let output = format!(
-                                "{}({:x}, {:x}, {:x}, ...) = {:x}",
-                                regs.orig_rax, regs.rdi, regs.rsi, regs.rdx, regs.rax
-                            );
-                            writeln!(lines, "{output}")?;
+                            let reg = RegistersData::new(ptrace::getregs(pid)?);
+                            writeln!(lines, "{}", reg.output())?;
 
                             if let Some(ref mut f) = f {
-                                writeln!(f, "{output}")?;
+                                writeln!(f, "{}", reg.output())?;
                             }
                         }
                     }
