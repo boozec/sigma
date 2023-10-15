@@ -2,7 +2,8 @@ mod trace;
 
 use crate::trace::{exec, trace};
 use clap::Parser;
-use std::process::Command;
+use fork::{fork, Fork};
+use nix::unistd::Pid;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -12,15 +13,13 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let params = args.command.split(' ').collect::<Vec<&str>>();
 
-    let mut command = Command::new(params[0]);
-    if params.len() > 1 {
-        for arg in &params[1..] {
-            command.arg(arg);
-        }
-    }
-    let pid = exec(&mut command)?;
+    let pid = match fork() {
+        Ok(Fork::Child) => return exec(&args.command),
+        Ok(Fork::Parent(child)) => Pid::from_raw(child as i32),
+        Err(err) => panic!("fork() failed: {err}"),
+    };
+
     trace(pid)?;
 
     Ok(())

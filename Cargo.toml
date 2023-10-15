@@ -9,4 +9,5 @@ authors = ["Santo Cariotti <santo@dcariotti.me>"]
 [dependencies]
 anyhow = "1.0.75"
 clap = { version = "4.4.6", features = ["derive"] }
+fork = "0.1.22"
 nix = { version = "0.27.1", features = ["ptrace"] }
