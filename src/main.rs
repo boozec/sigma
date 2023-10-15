@@ -8,9 +8,12 @@ use nix::unistd::Pid;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Command to execute from ptrace
     command: String,
 }
 
+/// Create a fork of the program and execute the process in the child. Parent gets the pid
+/// value and trace it.
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 

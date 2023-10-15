@@ -8,6 +8,7 @@ use nix::{
 };
 use std::{os::unix::process::CommandExt, process::Command};
 
+/// Exec the `command` value tracing it with `ptrace` lib
 pub fn exec(command: &String) -> anyhow::Result<()> {
     let params: Vec<&str> = command.split(' ').collect();
 
@@ -23,10 +24,13 @@ pub fn exec(command: &String) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Trace a process with `pid` ID
 pub fn trace(pid: Pid) -> anyhow::Result<()> {
+    // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
+    // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
 
-    // First wait if for the parent process
+    // First wait for the parent process
     _ = waitpid(pid, None)?;
 
     loop {
@@ -35,9 +39,11 @@ pub fn trace(pid: Pid) -> anyhow::Result<()> {
         let status = waitpid(pid, None)?;
 
         match status {
+            // Break the loop if the process exists
             WaitStatus::Exited(_pid, _) => {
                 break;
             }
+            // Match the stopped value for a process
             WaitStatus::Stopped(pid, signal) => {
                 match signal {
                     Signal::SIGTRAP => {
