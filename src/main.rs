@@ -6,7 +6,7 @@ use crossterm::{
 };
 use ratatui::{prelude::*, widgets::*};
 use std::{
-    io::{self, stdout},
+    io::{self, stdout, Write},
     str,
 };
 
@@ -20,9 +20,14 @@ use nix::unistd::Pid;
 struct Args {
     /// Command to execute from ptrace
     command: String,
+
     /// Write the output to a file instead of the standard output
     #[arg(short = 'f', long = "file")]
     file_to_print: Option<String>,
+
+    /// If defined, it hides the TUI
+    #[arg(long = "no-tui", default_value_t = false)]
+    no_tui: bool,
 }
 
 struct UI {
@@ -44,12 +49,6 @@ impl UI {
 /// Create a fork of the program and execute the process in the child. Parent gets the pid
 /// value and trace it.
 fn main() -> anyhow::Result<()> {
-    enable_raw_mode()?;
-    stdout().execute(EnterAlternateScreen)?;
-    let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-
-    let mut ui = UI::new();
-
     let args = Args::parse();
 
     let pid = match fork() {
@@ -58,40 +57,50 @@ fn main() -> anyhow::Result<()> {
         Err(err) => panic!("fork() failed: {err}"),
     };
     let output = trace(pid, args.file_to_print)?;
-    let lines = str::from_utf8(&output)?;
-    ui.max_lines = lines.split('\n').count();
+    let lines = str::from_utf8(&output)?.trim();
 
-    let mut should_quit = false;
-    while !should_quit {
-        ui.height = terminal.get_frame().size().height as usize;
-        terminal.draw(move |frame| {
-            let size = frame.size();
-            frame.render_widget(
-                Paragraph::new(lines)
-                    .block(
-                        Block::default()
-                            .border_style(Style::default().fg(Color::Yellow))
-                            .title(format!("[{pid}]"))
-                            .title(
-                                block::Title::from(format!(
-                                    "[lines {}-{}]",
-                                    ui.scroll,
-                                    ui.scroll + ui.height
-                                ))
-                                .position(block::Position::Bottom)
-                                .alignment(Alignment::Right),
-                            )
-                            .borders(Borders::ALL),
-                    )
-                    .scroll((ui.scroll as u16, 0)),
-                size,
-            );
-        })?;
-        should_quit = handle_events(&mut ui)?;
+    if !args.no_tui {
+        enable_raw_mode()?;
+        stdout().execute(EnterAlternateScreen)?;
+        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+
+        let mut ui = UI::new();
+        ui.max_lines = lines.split('\n').count() + 1;
+
+        let mut should_quit = false;
+        while !should_quit {
+            ui.height = terminal.get_frame().size().height as usize;
+            terminal.draw(move |frame| {
+                let size = frame.size();
+                frame.render_widget(
+                    Paragraph::new(lines)
+                        .block(
+                            Block::default()
+                                .border_style(Style::default().fg(Color::Yellow))
+                                .title(format!("[{pid}]"))
+                                .title(
+                                    block::Title::from(format!(
+                                        "[lines {}-{}]",
+                                        ui.scroll,
+                                        ui.scroll + ui.height
+                                    ))
+                                    .position(block::Position::Bottom)
+                                    .alignment(Alignment::Right),
+                                )
+                                .borders(Borders::ALL),
+                        )
+                        .scroll((ui.scroll as u16, 0)),
+                    size,
+                );
+            })?;
+            should_quit = handle_events(&mut ui)?;
+        }
+
+        disable_raw_mode()?;
+        stdout().execute(LeaveAlternateScreen)?;
+    } else {
+        writeln!(io::stdout(), "{lines}")?;
     }
-
-    disable_raw_mode()?;
-    stdout().execute(LeaveAlternateScreen)?;
 
     Ok(())
 }
