@@ -6,12 +6,7 @@ use nix::{
     },
     unistd::Pid,
 };
-use std::{
-    fs::File,
-    io::{self, Write},
-    os::unix::process::CommandExt,
-    process::Command,
-};
+use std::{fs::File, io::Write, os::unix::process::CommandExt, process::Command};
 
 /// Exec the `command` value tracing it with `ptrace` lib
 pub fn exec(command: &String) -> anyhow::Result<()> {
@@ -30,7 +25,7 @@ pub fn exec(command: &String) -> anyhow::Result<()> {
 }
 
 /// Trace a process with `pid` ID
-pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<()> {
+pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<u8>> {
     // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
     // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
@@ -44,6 +39,8 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<()> {
     if let Some(filename) = file_to_print {
         f = Some(File::create(filename)?);
     }
+
+    let mut lines = Vec::new();
 
     loop {
         have_to_print ^= true;
@@ -65,7 +62,7 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<()> {
                                 "{}({:x}, {:x}, {:x}, ...) = {:x}",
                                 regs.orig_rax, regs.rdi, regs.rsi, regs.rdx, regs.rax
                             );
-                            writeln!(io::stdout(), "{output}")?;
+                            writeln!(lines, "{output}")?;
 
                             if let Some(ref mut f) = f {
                                 writeln!(f, "{output}")?;
@@ -79,5 +76,5 @@ pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<()> {
         };
     }
 
-    Ok(())
+    Ok(lines)
 }

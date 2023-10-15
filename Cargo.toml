@@ -9,5 +9,7 @@ authors = ["Santo Cariotti <santo@dcariotti.me>"]
 [dependencies]
 anyhow = "1.0.75"
 clap = { version = "4.4.6", features = ["derive"] }
+crossterm = "0.27.0"
 fork = "0.1.22"
 nix = { version = "0.27.1", features = ["ptrace"] }
+ratatui = "0.23.0"
