@@ -6,7 +6,12 @@ use nix::{
     },
     unistd::Pid,
 };
-use std::{os::unix::process::CommandExt, process::Command};
+use std::{
+    fs::File,
+    io::{self, Write},
+    os::unix::process::CommandExt,
+    process::Command,
+};
 
 /// Exec the `command` value tracing it with `ptrace` lib
 pub fn exec(command: &String) -> anyhow::Result<()> {
@@ -25,13 +30,20 @@ pub fn exec(command: &String) -> anyhow::Result<()> {
 }
 
 /// Trace a process with `pid` ID
-pub fn trace(pid: Pid) -> anyhow::Result<()> {
+pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<()> {
     // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
     // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
 
     // First wait for the parent process
     _ = waitpid(pid, None)?;
+
+    // If `fiole_to_print` is not None, create a new file with that value for redirecting all the
+    // output (also in stdout)
+    let mut f = None;
+    if let Some(filename) = file_to_print {
+        f = Some(File::create(filename)?);
+    }
 
     loop {
         have_to_print ^= true;
@@ -49,10 +61,15 @@ pub fn trace(pid: Pid) -> anyhow::Result<()> {
                     Signal::SIGTRAP => {
                         let regs = ptrace::getregs(pid)?;
                         if have_to_print {
-                            println!(
+                            let output = format!(
                                 "{}({:x}, {:x}, {:x}, ...) = {:x}",
-                                regs.orig_rax, regs.rdi, regs.rsi, regs.rdx, regs.rax,
+                                regs.orig_rax, regs.rdi, regs.rsi, regs.rdx, regs.rax
                             );
+                            writeln!(io::stdout(), "{output}")?;
+
+                            if let Some(ref mut f) = f {
+                                writeln!(f, "{output}")?;
+                            }
                         }
                     }
                     _ => {}

@@ -10,6 +10,9 @@ use nix::unistd::Pid;
 struct Args {
     /// Command to execute from ptrace
     command: String,
+    /// Write the output to a file instead of the standard output
+    #[arg(short = 'f', long = "file")]
+    file_to_print: Option<String>,
 }
 
 /// Create a fork of the program and execute the process in the child. Parent gets the pid
@@ -23,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         Err(err) => panic!("fork() failed: {err}"),
     };
 
-    trace(pid)?;
+    trace(pid, args.file_to_print)?;
 
     Ok(())
 }
