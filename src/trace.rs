@@ -1,3 +1,4 @@
+use crate::cli::Args;
 use crate::registers::RegistersData;
 use nix::{
     sys::{
@@ -7,7 +8,14 @@ use nix::{
     },
     unistd::Pid,
 };
-use std::{fs::File, io::Write, os::unix::process::CommandExt, process::Command};
+use std::{
+    fs::File,
+    // fs::File,
+    io::{self, Write},
+    os::unix::process::CommandExt,
+    process::Command,
+    str,
+};
 
 /// Exec the `command` value tracing it with `ptrace` lib
 pub fn exec(command: &str) -> anyhow::Result<()> {
@@ -25,54 +33,82 @@ pub fn exec(command: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Trace a process with `pid` ID and returns a list of `RegistersData`
-pub fn trace(pid: Pid, file_to_print: Option<String>) -> anyhow::Result<Vec<RegistersData>> {
-    // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
-    // because it could be equals except for the `rax` register.
-    let mut have_to_print = true;
+/// Attach a ptrace status to a `pid`
+pub fn attach(pid: Pid) -> anyhow::Result<()> {
+    ptrace::attach(pid)?;
 
+    Ok(())
+}
+
+/// Trace a process with `pid` ID and returns a list of `RegistersData`
+pub fn trace(pid: Pid, args: &Args, run_loop: bool) -> anyhow::Result<Vec<RegistersData>> {
     // First wait for the parent process
     _ = waitpid(pid, None)?;
 
-    // If `fiole_to_print` is not None, create a new file with that value for redirecting all the
+    // FIXME: file writing on attachment
+    // If `file_to_print` is not None, create a new file with that value for redirecting all the
     // output (also in stdout)
     let mut f = None;
-    if let Some(filename) = file_to_print {
+    if let Some(filename) = &args.file_to_print {
         f = Some(File::create(filename)?);
     }
 
     let mut lines: Vec<RegistersData> = Vec::new();
 
-    loop {
-        have_to_print ^= true;
-        ptrace::syscall(pid, None)?;
-        let status = waitpid(pid, None)?;
+    if run_loop {
+        // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
+        // because it could be equals except for the `rax` register.
+        let mut have_to_print = true;
 
-        match status {
-            // Break the loop if the process exists
-            WaitStatus::Exited(_pid, _) => {
-                break;
-            }
-            // Match the stopped value for a process
-            WaitStatus::Stopped(pid, signal) => {
-                match signal {
-                    Signal::SIGTRAP => {
-                        if have_to_print {
-                            let reg = RegistersData::new(ptrace::getregs(pid)?);
-
-                            if let Some(ref mut f) = f {
-                                writeln!(f, "{}", reg.output())?;
-                            }
-
-                            lines.push(reg);
+        loop {
+            match trace_next(pid)? {
+                Some(reg) => {
+                    have_to_print ^= true;
+                    if have_to_print {
+                        if let Some(ref mut f) = f {
+                            writeln!(f, "{}", reg.output())?;
                         }
-                    }
-                    _ => {}
-                };
-            }
-            _ => {}
-        };
-    }
 
+                        if args.no_tui {
+                            writeln!(io::stdout(), "{}", reg.output())?;
+                        }
+
+                        lines.push(reg);
+                    }
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+    }
     Ok(lines)
+}
+
+/// Get the next step for a ptrace process
+pub fn trace_next(pid: Pid) -> anyhow::Result<Option<RegistersData>> {
+    ptrace::syscall(pid, None)?;
+    let status = waitpid(pid, None).unwrap();
+
+    match status {
+        // Match the stopped value for a process
+        WaitStatus::Stopped(pid, signal) => {
+            match signal {
+                Signal::SIGTRAP => {
+                    let reg = RegistersData::new(ptrace::getregs(pid)?);
+                    return Ok(Some(reg));
+                }
+                _ => {}
+            };
+        }
+        _ => {}
+    };
+
+    Ok(None)
+}
+
+/// Kill a process traced by ptrace
+pub fn trace_kill(pid: Pid) -> anyhow::Result<()> {
+    let _ = ptrace::kill(pid);
+    Ok(())
 }

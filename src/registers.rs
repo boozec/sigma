@@ -6,6 +6,7 @@ use ratatui::{
 };
 
 /// Struct used to manipulate registers data from https://docs.rs/libc/0.2.147/libc/struct.user_regs_struct.html
+#[derive(Debug)]
 pub struct RegistersData {
     orig_rax: u64,
     rdi: u64,
