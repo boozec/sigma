@@ -1,3 +1,4 @@
+mod arch;
 mod cli;
 mod registers;
 mod trace;

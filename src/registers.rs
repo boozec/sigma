@@ -6,6 +6,9 @@ use ratatui::{
     style::Modifier,
 };
 
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+use crate::arch::linux::x86_64::syscall_name;
+
 /// Struct used to manipulate registers data from https://docs.rs/libc/0.2.147/libc/struct.user_regs_struct.html
 #[derive(Debug)]
 pub struct RegistersData {
@@ -40,7 +43,7 @@ impl RegistersData {
         format!(
             "[{}]: {}({:x}, {:x}, {:x}, ...) = {:x}",
             self.date(),
-            self.orig_rax.bold(),
+            syscall_name(self.orig_rax).bold(),
             self.rdi,
             self.rsi,
             self.rdx,
@@ -53,7 +56,7 @@ impl RegistersData {
         Line::from(vec![
             Span::raw(format!("[{}]: ", self.date())),
             Span::styled(
-                format!("{}", self.orig_rax),
+                format!("{}", syscall_name(self.orig_rax)),
                 Style::default().add_modifier(Modifier::BOLD),
             ),
             Span::raw(format!(
