@@ -8,6 +8,8 @@ use ratatui::{
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use crate::arch::linux::x86_64::syscall_name;
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
+use crate::arch::syscall_name;
 
 /// Struct used to manipulate registers data from https://docs.rs/libc/0.2.147/libc/struct.user_regs_struct.html
 #[derive(Debug)]
