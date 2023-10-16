@@ -10,10 +10,9 @@ use nix::{
 };
 use std::{
     fs::File,
-    // fs::File,
     io::{self, Write},
     os::unix::process::CommandExt,
-    process::Command,
+    process::{Command, Stdio},
     str,
 };
 
@@ -23,6 +22,7 @@ pub fn exec(command: &str) -> anyhow::Result<()> {
 
     let mut command = Command::new(params[0]);
     command.args(params[1..].iter());
+    command.stdout(Stdio::null());
 
     unsafe {
         command.pre_exec(|| ptrace::traceme().map_err(|e| e.into()));
