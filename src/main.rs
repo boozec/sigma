@@ -16,7 +16,6 @@ use trace::attach;
 /// value and trace it.
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-
     let pid = if args.command.is_some() {
         match fork() {
             Ok(Fork::Child) => return exec(&args.command.unwrap()),
