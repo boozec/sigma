@@ -41,7 +41,7 @@ pub fn attach(pid: Pid) -> anyhow::Result<()> {
 }
 
 /// Trace a process with `pid` ID and returns a list of `RegistersData`
-pub fn trace(pid: Pid, args: &Args, run_loop: bool) -> anyhow::Result<Vec<RegistersData>> {
+pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
     // First wait for the parent process
     _ = waitpid(pid, None)?;
 
@@ -55,30 +55,28 @@ pub fn trace(pid: Pid, args: &Args, run_loop: bool) -> anyhow::Result<Vec<Regist
 
     let mut lines: Vec<RegistersData> = Vec::new();
 
-    if run_loop {
-        // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
-        // because it could be equals except for the `rax` register.
-        let mut have_to_print = true;
+    // Since you have to do 2 syscalls (start and end) you have to alternate the print value,
+    // because it could be equals except for the `rax` register.
+    let mut have_to_print = true;
 
-        loop {
-            match trace_next(pid)? {
-                Some(reg) => {
-                    have_to_print ^= true;
-                    if have_to_print {
-                        if let Some(ref mut f) = f {
-                            writeln!(f, "{}", reg.output())?;
-                        }
-
-                        if args.no_tui {
-                            writeln!(io::stdout(), "{}", reg.output())?;
-                        }
-
-                        lines.push(reg);
+    loop {
+        match trace_next(pid)? {
+            Some(reg) => {
+                have_to_print ^= true;
+                if have_to_print {
+                    if let Some(ref mut f) = f {
+                        writeln!(f, "{}", reg.output())?;
                     }
+
+                    if args.no_tui {
+                        writeln!(io::stdout(), "{}", reg.output())?;
+                    }
+
+                    lines.push(reg);
                 }
-                None => {
-                    break;
-                }
+            }
+            None => {
+                break;
             }
         }
     }

@@ -8,7 +8,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use nix::unistd::Pid;
+use nix::{sys::wait::waitpid, unistd::Pid};
 use ratatui::{prelude::*, widgets::*};
 use std::io::{self, stdout};
 
@@ -66,12 +66,16 @@ impl UI {
         let mut have_to_trace = !args.command.is_some();
         let mut should_quit = false;
 
-        let lines = trace(pid, &args, args.command.is_some())?;
-        if lines.len() > 1 {
-            for line in lines {
-                self.add_line(line);
+        if args.command.is_some() {
+            let registers = trace(pid, &args)?;
+            for register in registers {
+                self.add_line(register);
             }
+        } else {
+            // First wait for the parent process
+            _ = waitpid(pid, None)?;
         }
+
         while !should_quit {
             if have_to_trace {
                 if let Some(reg) = trace_next(pid)? {

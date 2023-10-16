@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
 
         ui.start(pid, &args)?;
     } else {
-        trace(pid, &args, true)?;
+        trace(pid, &args)?;
     }
 
     Ok(())
