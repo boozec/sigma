@@ -63,11 +63,11 @@ impl UI {
         let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
         let mut have_to_print = true;
-        let mut have_to_trace = !args.command.is_some();
+        let mut have_to_trace = args.command.is_none();
         let mut should_quit = false;
 
         if args.command.is_some() {
-            let registers = trace(pid, &args)?;
+            let registers = trace(pid, args)?;
             for register in registers {
                 self.add_line(register);
             }

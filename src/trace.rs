@@ -59,25 +59,18 @@ pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
     // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
 
-    loop {
-        match trace_next(pid)? {
-            Some(reg) => {
-                have_to_print ^= true;
-                if have_to_print {
-                    if let Some(ref mut f) = f {
-                        writeln!(f, "{}", reg.output())?;
-                    }
-
-                    if args.no_tui {
-                        writeln!(io::stdout(), "{}", reg.output())?;
-                    }
-
-                    lines.push(reg);
-                }
+    while let Some(reg) = trace_next(pid)? {
+        have_to_print ^= true;
+        if have_to_print {
+            if let Some(ref mut f) = f {
+                writeln!(f, "{}", reg.output())?;
             }
-            None => {
-                break;
+
+            if args.no_tui {
+                writeln!(io::stdout(), "{}", reg.output())?;
             }
+
+            lines.push(reg);
         }
     }
     Ok(lines)
