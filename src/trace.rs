@@ -59,9 +59,17 @@ pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
     // because it could be equals except for the `rax` register.
     let mut have_to_print = true;
 
+    let filters: Vec<&str> = match &args.filter {
+        Some(filter) => filter.split(",").collect::<Vec<&str>>(),
+        None => vec![],
+    };
     while let Some(reg) = trace_next(pid)? {
         have_to_print ^= true;
         if have_to_print {
+            if !filters.is_empty() && !filters.contains(&reg.rax()) {
+                continue;
+            }
+
             if let Some(ref mut f) = f {
                 writeln!(f, "{}", reg.output())?;
             }

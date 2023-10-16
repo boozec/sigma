@@ -76,11 +76,18 @@ impl UI {
             _ = waitpid(pid, None)?;
         }
 
+        let filters: Vec<&str> = match &args.filter {
+            Some(filter) => filter.split(",").collect::<Vec<&str>>(),
+            None => vec![],
+        };
         while !should_quit {
             if have_to_trace {
                 if let Some(reg) = trace_next(pid)? {
                     have_to_print ^= true;
                     if have_to_print {
+                        if !filters.is_empty() && !filters.contains(&reg.rax()) {
+                            continue;
+                        }
                         self.add_line(reg);
                     }
                 } else {

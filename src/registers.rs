@@ -40,12 +40,17 @@ impl RegistersData {
         self.timestamp.format("%+").to_string()
     }
 
+    /// Return the rax name as syscall name
+    pub fn rax(&self) -> &str {
+        syscall_name(self.orig_rax)
+    }
+
     /// Returns a good string which shows the output for a line
     pub fn output(&self) -> String {
         format!(
             "[{}]: {}({:x}, {:x}, {:x}, ...) = {:x}",
             self.date(),
-            syscall_name(self.orig_rax).bold(),
+            self.rax().bold(),
             self.rdi,
             self.rsi,
             self.rdx,
@@ -58,7 +63,7 @@ impl RegistersData {
         Line::from(vec![
             Span::raw(format!("[{}]: ", self.date())),
             Span::styled(
-                format!("{}", syscall_name(self.orig_rax)),
+                format!("{}", self.rax()),
                 Style::default().add_modifier(Modifier::BOLD),
             ),
             Span::raw(format!(
