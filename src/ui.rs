@@ -137,7 +137,7 @@ fn handle_events(ui: &mut UI) -> io::Result<bool> {
                         }
                     }
                     KeyCode::Char('K') | KeyCode::Char('0') => {
-                        ui.scroll = ui.height;
+                        ui.scroll = 1;
                     }
                     _ => {}
                 }
