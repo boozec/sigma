@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use nix::libc::user_regs_struct;
+use nix::{libc::user_regs_struct, unistd::Pid};
 use owo_colors::OwoColorize;
 use ratatui::{
     prelude::{Line, Span, Style},
@@ -10,9 +10,10 @@ use ratatui::{
 use crate::arch::linux::x86_64::*;
 #[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
 use crate::arch::syscall_name;
+use crate::trace::read_memory;
 
 /// Struct used to manipulate registers data from https://docs.rs/libc/0.2.147/libc/struct.user_regs_struct.html
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RegistersData {
     timestamp: DateTime<Local>,
     orig_rax: u64,
@@ -52,10 +53,10 @@ impl RegistersData {
     }
 
     /// Returns a good string which shows the output for a line
-    pub fn output(&self) -> String {
+    pub fn output(&self, pid: Pid) -> String {
         let mut output = format!("[{}]: ", self.date());
 
-        if self.name().len() > 0 {
+        if !self.name().is_empty() {
             output.push_str(&format!("{}(", self.name().bold()));
         } else {
             output.push_str(&format!("{}(", self.orig_rax.yellow().bold()));
@@ -73,9 +74,16 @@ impl RegistersData {
         ];
 
         for param in params {
-            if param.1.len() != 0 {
+            if !param.1.is_empty() {
                 let output_param = param.1.to_owned() + ":";
-                output.push_str(&format!("{} {}, ", output_param.blue(), param.0));
+                let output_value = if output_param.starts_with("const char *")
+                    || output_param.starts_with("char *")
+                {
+                    read_memory(pid, param.0)
+                } else {
+                    param.0.to_string()
+                };
+                output.push_str(&format!("{} {}, ", output_param.blue(), output_value));
                 has_param = true;
             }
         }
@@ -90,10 +98,10 @@ impl RegistersData {
     }
 
     /// Returns a good line for TUI
-    pub fn output_ui(&self) -> Line {
+    pub fn output_ui(&self, pid: Pid) -> Line {
         let mut spans: Vec<Span> = vec![];
         spans.push(Span::raw(format!("[{}]: ", self.date())));
-        if self.name().len() > 0 {
+        if !self.name().is_empty() {
             spans.push(Span::styled(
                 format!("{}(", self.name()),
                 Style::default().add_modifier(Modifier::BOLD),
@@ -117,13 +125,25 @@ impl RegistersData {
         ];
 
         for param in params {
-            if param.1.len() != 0 {
+            if !param.1.is_empty() {
                 let output_param = param.1.to_owned() + ":";
                 spans.push(Span::styled(
                     format!("{} ", output_param),
                     Style::default().fg(Color::Blue),
                 ));
-                spans.push(Span::styled(format!("{}, ", param.0), Style::default()));
+
+                // FIXME: read memory does not work
+                let output_value = if output_param.starts_with("const char *")
+                    || output_param.starts_with("char *")
+                {
+                    read_memory(pid, param.0)
+                } else {
+                    param.0.to_string()
+                };
+                spans.push(Span::styled(
+                    format!("{}, ", output_value),
+                    Style::default(),
+                ));
             }
         }
 

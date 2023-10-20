@@ -35,7 +35,7 @@ impl UI {
     }
 
     pub fn get_paragraph(&self, pid: Pid) -> Paragraph {
-        let lines: Vec<Line> = self.lines.iter().map(|x| x.output_ui()).collect();
+        let lines: Vec<Line> = self.lines.iter().map(|x| x.output_ui(pid)).collect();
         let paragraph = Paragraph::new(lines)
             .block(
                 Block::default()
@@ -77,7 +77,7 @@ impl UI {
         }
 
         let filters: Vec<&str> = match &args.filter {
-            Some(filter) => filter.split(",").collect::<Vec<&str>>(),
+            Some(filter) => filter.split(',').collect::<Vec<&str>>(),
             None => vec![],
         };
         while !should_quit {

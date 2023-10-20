@@ -1,5 +1,6 @@
 use crate::cli::Args;
 use crate::registers::RegistersData;
+use byteorder::{LittleEndian, WriteBytesExt};
 use nix::{
     sys::{
         ptrace,
@@ -11,7 +12,7 @@ use nix::{
 use std::{
     fs::File,
     io::{self, Write},
-    os::unix::process::CommandExt,
+    os::{raw::c_void, unix::process::CommandExt},
     process::{Command, Stdio},
     str,
 };
@@ -60,7 +61,7 @@ pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
     let mut have_to_print = true;
 
     let filters: Vec<&str> = match &args.filter {
-        Some(filter) => filter.split(",").collect::<Vec<&str>>(),
+        Some(filter) => filter.split(',').collect::<Vec<&str>>(),
         None => vec![],
     };
     while let Some(reg) = trace_next(pid)? {
@@ -71,17 +72,64 @@ pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
             }
 
             if let Some(ref mut f) = f {
-                writeln!(f, "{}", reg.output())?;
+                writeln!(f, "{}", reg.output(pid))?;
             }
 
             if args.no_tui {
-                writeln!(io::stdout(), "{}", reg.output())?;
+                writeln!(io::stdout(), "{}", reg.output(pid))?;
             }
 
             lines.push(reg);
         }
     }
     Ok(lines)
+}
+
+/// Read memory and returns a string.
+/// Thank you https://github.com/JakWai01/lurk/blob/e3a3d6c026bbf818fe1329f8d458be544c3c5ebc/src/arch/mod.rs#L66
+pub fn read_memory(pid: Pid, address: u64) -> String {
+    let mut string = String::new();
+
+    let mut count = 0;
+    let word_size = 8;
+
+    loop {
+        let address = unsafe { (address as *mut c_void).offset(count) };
+
+        match ptrace::read(pid, address) {
+            Ok(read) => {
+                let mut bytes: Vec<u8> = vec![];
+                bytes.write_i64::<LittleEndian>(read).unwrap_or_else(|err| {
+                    panic!("Failed to write {read} as i64 LittleEndian: {err}");
+                });
+
+                if !bytes
+                    .iter()
+                    .filter(|&b| *b == 0x0)
+                    .collect::<Vec<&u8>>()
+                    .is_empty()
+                {
+                    break;
+                }
+
+                bytes.iter().for_each(|b| {
+                    string.push(*b as char);
+                });
+
+                count += word_size;
+            }
+            Err(_) => break,
+        };
+    }
+
+    if string.len() > 24 {
+        string = string[..24].to_string();
+        string.push_str("...");
+    }
+
+    string = string.replace('\n', "\\n");
+
+    format!("\"{string}\"")
 }
 
 /// Get the next step for a ptrace process
