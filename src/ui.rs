@@ -85,7 +85,7 @@ impl UI {
                 if let Some(reg) = trace_next(pid)? {
                     have_to_print ^= true;
                     if have_to_print {
-                        if !filters.is_empty() && !filters.contains(&reg.rax()) {
+                        if !filters.is_empty() && !filters.contains(&reg.name()) {
                             continue;
                         }
                         self.add_line(reg);
