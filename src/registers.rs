@@ -3,11 +3,11 @@ use nix::libc::user_regs_struct;
 use owo_colors::OwoColorize;
 use ratatui::{
     prelude::{Line, Span, Style},
-    style::Modifier,
+    style::{Color, Modifier},
 };
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use crate::arch::linux::x86_64::syscall_name;
+use crate::arch::linux::x86_64::*;
 #[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
 use crate::arch::syscall_name;
 
@@ -19,6 +19,9 @@ pub struct RegistersData {
     rdi: u64,
     rsi: u64,
     rdx: u64,
+    r10: u64,
+    r8: u64,
+    r9: u64,
     rax: u64,
 }
 
@@ -31,6 +34,9 @@ impl RegistersData {
             rdi: registers.rdi,
             rsi: registers.rsi,
             rdx: registers.rdx,
+            r10: registers.r10,
+            r8: registers.r8,
+            r9: registers.r9,
             rax: registers.rax,
         }
     }
@@ -47,29 +53,84 @@ impl RegistersData {
 
     /// Returns a good string which shows the output for a line
     pub fn output(&self) -> String {
-        format!(
-            "[{}]: {}({:x}, {:x}, {:x}, ...) = {:x}",
-            self.date(),
-            self.name().bold(),
-            self.rdi,
-            self.rsi,
-            self.rdx,
-            self.rax
-        )
+        let mut output = format!("[{}]: ", self.date());
+
+        if self.name().len() > 0 {
+            output.push_str(&format!("{}(", self.name().bold()));
+        } else {
+            output.push_str(&format!("{}(", self.orig_rax.yellow().bold()));
+        }
+
+        let mut has_param = false;
+
+        let params = [
+            (self.rdi, rdi(self.orig_rax)),
+            (self.rsi, rsi(self.orig_rax)),
+            (self.rdx, rdx(self.orig_rax)),
+            (self.r10, r10(self.orig_rax)),
+            (self.r8, r8(self.orig_rax)),
+            (self.r9, r9(self.orig_rax)),
+        ];
+
+        for param in params {
+            if param.1.len() != 0 {
+                let output_param = param.1.to_owned() + ":";
+                output.push_str(&format!("{} {}, ", output_param.blue(), param.0));
+                has_param = true;
+            }
+        }
+
+        if has_param {
+            output.remove(output.len() - 1);
+            output.remove(output.len() - 1);
+        }
+
+        output.push_str(&format!(") = 0x{:x}", self.rax)[..]);
+        output
     }
 
     /// Returns a good line for TUI
     pub fn output_ui(&self) -> Line {
-        Line::from(vec![
-            Span::raw(format!("[{}]: ", self.date())),
-            Span::styled(
-                format!("{}", self.name()),
+        let mut spans: Vec<Span> = vec![];
+        spans.push(Span::raw(format!("[{}]: ", self.date())));
+        if self.name().len() > 0 {
+            spans.push(Span::styled(
+                format!("{}(", self.name()),
                 Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(format!(
-                "({:x}, {:x}, {:x}, ...) = {:x}",
-                self.rdi, self.rsi, self.rdx, self.rax
-            )),
-        ])
+            ));
+        } else {
+            spans.push(Span::styled(
+                format!("{}(", self.orig_rax),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+
+        let params = [
+            (self.rdi, rdi(self.orig_rax)),
+            (self.rsi, rsi(self.orig_rax)),
+            (self.rdx, rdx(self.orig_rax)),
+            (self.r10, r10(self.orig_rax)),
+            (self.r8, r8(self.orig_rax)),
+            (self.r9, r9(self.orig_rax)),
+        ];
+
+        for param in params {
+            if param.1.len() != 0 {
+                let output_param = param.1.to_owned() + ":";
+                spans.push(Span::styled(
+                    format!("{} ", output_param),
+                    Style::default().fg(Color::Blue),
+                ));
+                spans.push(Span::styled(format!("{}, ", param.0), Style::default()));
+            }
+        }
+
+        spans.push(Span::styled(
+            format!(") = 0x{:x}", self.rax),
+            Style::default(),
+        ));
+        Line::from(spans)
     }
 }
