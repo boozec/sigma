@@ -34,8 +34,11 @@ impl UI {
         self.max_lines = self.lines.len() + 1;
     }
 
-    pub fn get_paragraph(&self, pid: Pid) -> Paragraph {
-        let lines: Vec<Line> = self.lines.iter().map(|x| x.output_ui(pid)).collect();
+    pub fn get_paragraph(&mut self, pid: Pid) -> Paragraph {
+        let mut lines: Vec<Line> = vec![];
+        for line in &mut self.lines {
+            lines.push(line.output_ui(pid));
+        }
         let paragraph = Paragraph::new(lines)
             .block(
                 Block::default()

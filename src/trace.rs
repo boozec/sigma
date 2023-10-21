@@ -64,7 +64,7 @@ pub fn trace(pid: Pid, args: &Args) -> anyhow::Result<Vec<RegistersData>> {
         Some(filter) => filter.split(',').collect::<Vec<&str>>(),
         None => vec![],
     };
-    while let Some(reg) = trace_next(pid)? {
+    while let Some(mut reg) = trace_next(pid)? {
         have_to_print ^= true;
         if have_to_print {
             if !filters.is_empty() && !filters.contains(&reg.name()) {
