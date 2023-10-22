@@ -1,8 +1,11 @@
 [package]
-name = "sigma"
+name = "sigma-trace"
 version = "0.0.1"
 edition = "2021"
 authors = ["Santo Cariotti <santo@dcariotti.me>"]
+repository = "https://github.com/boozec/sigma"
+description = "Monitor Linux executables with an interface easier than strace(1)"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
