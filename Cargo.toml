@@ -1,6 +1,6 @@
 [package]
 name = "sigma-trace"
-version = "0.0.1-c"
+version = "0.0.2"
 edition = "2021"
 authors = ["Santo Cariotti <santo@dcariotti.me>"]
 repository = "https://github.com/boozec/sigma"
