@@ -127,20 +127,26 @@ fn handle_events(ui: &mut UI) -> io::Result<bool> {
                         return Ok(true);
                     }
                     KeyCode::Char('j') | KeyCode::Down => {
-                        if ui.scroll < (ui.max_lines - ui.height + 1) {
+                        if (ui.max_lines >= ui.height) && ui.scroll < (ui.max_lines - ui.height + 1)
+                        {
                             ui.scroll += 1;
                         }
                     }
                     KeyCode::Char('J') | KeyCode::Char('G') => {
-                        ui.scroll = ui.max_lines - ui.height + 1;
+                        if (ui.max_lines >= ui.height) && ui.scroll < (ui.max_lines - ui.height + 1)
+                        {
+                            ui.scroll = ui.max_lines - ui.height + 1;
+                        }
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
                         if ui.scroll > 1 {
                             ui.scroll -= 1;
+                        } else {
+                            ui.scroll = 0;
                         }
                     }
                     KeyCode::Char('K') | KeyCode::Char('0') => {
-                        ui.scroll = 1;
+                        ui.scroll = 0;
                     }
                     _ => {}
                 }
