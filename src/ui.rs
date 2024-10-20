@@ -98,9 +98,9 @@ impl UI {
                 }
             }
 
-            self.height = terminal.get_frame().size().height as usize;
+            self.height = terminal.get_frame().area().height as usize;
             terminal.draw(|frame| {
-                let size = frame.size();
+                let size = frame.area();
 
                 frame.render_widget(self.get_paragraph(pid), size);
             })?;
